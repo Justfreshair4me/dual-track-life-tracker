@@ -2,7 +2,7 @@
 
 These instructions are for a developer or a personal computer where software installation is permitted. The browser-only GitHub Pages instructions in the main README are the normal user path. No terminal or software installation is needed to use the hosted app.
 
-The Vite base is now `/dual-track-life-tracker/`. Append that path to local preview/development addresses. The standard test suite runs the production build at this same path, and the current suite contains 24 checks. `npm run verify:preview` defaults to `http://127.0.0.1:5173/dual-track-life-tracker/`. The existing storage module and database version remain unchanged.
+The Vite base is `/dual-track-life-tracker/`. Append that path to local preview/development addresses. The standard test suite runs the production build at this same path, and the current suite contains 33 checks. `npm run verify:preview` defaults to `http://127.0.0.1:5173/dual-track-life-tracker/`. The database name, version, object store, and entry schema remain unchanged.
 
 A free, local-first memory app for Personal and Work notes. No account, credit card, subscription, AI API, analytics, or cloud database is required. HTML defines the screens, CSS controls their appearance, and JavaScript handles recording and saving. Vite is the free development/build tool; IndexedDB is the browser's built-in database. There are no runtime packages loaded from external websites.
 
@@ -16,8 +16,9 @@ A free, local-first memory app for Personal and Work notes. No account, credit c
 - Open an entry to read, play audio, edit, or delete it. Editing preserves original text and audio; deletion asks for confirmation.
 - Installable production PWA with cached files for offline use.
 - Light/dark themes and an optional request for more durable storage.
+- Phase 2A: local audio-inclusive backups, integrity checks, safe merging, and explicitly confirmed atomic replacement. See [the backup guide](BACKUPS.md).
 
-Recall, Tasks, and Summaries are visibly marked “Coming soon.” Categorization/search are Phase 2; tasks/reminders are Phase 3; advanced summaries, trends, backups, and recovery are Phase 4. No transcription is included: common browser speech-recognition services may upload audio and need internet. Local recording does not.
+Recall, Tasks, and Summaries are visibly marked “Coming soon.” Categorization/search, tasks/reminders, and advanced summaries/trends remain later work. Backups were brought forward as the explicitly requested Phase 2A. No transcription is included: common browser speech-recognition services may upload audio and need internet. Local recording does not.
 
 ## Preview on Windows — step by step
 
@@ -49,9 +50,9 @@ Open the new **Local** address printed in the terminal. Give the first load time
 
 Your phone cannot use the computer's localhost address. A plain HTTP address over Wi-Fi also does not meet Chrome's secure-connection requirement for microphone recording and normal PWA installation.
 
-The simplest next step is to publish the built static files on a free HTTPS host, such as GitHub Pages, subject to its free-plan eligibility and usage limits. This has not been published by this task. The app's files would be publicly accessible on Pages, while your entries remain in each device's browser. Free GitHub Pages normally requires a public repository. **Confirm before making a repository public or publishing.** A private repository can remain private while using local Windows previews; we can discuss a suitable free HTTPS alternative before Android setup.
+The owner has already deployed the app to free GitHub Pages and verified Phase 1 on Windows and Android. Use https://justfreshair4me.github.io/dual-track-life-tracker/ for browser-only access. App files are public; entries remain local. New backup features need manual device verification after merge and deployment.
 
-Once an approved HTTPS deployment exists:
+On the deployed site:
 
 1. Open its address in Android Chrome, while online, and let it finish loading.
 2. Tap **Settings** and **Install app** if available, or use Chrome's **⋮ → Install app / Add to Home screen** option. Menu wording depends on Chrome's version.
@@ -59,7 +60,7 @@ Once an approved HTTPS deployment exists:
 4. Tap the microphone and allow microphone access. Speak a fictional note, then tap **Stop & save recording**. Open it in History and listen.
 5. Close the app, reopen it, and check the entry. Then try airplane mode and create a fictional note offline.
 
-Android hardware recording, actual installation, and Windows browser operation still need your device testing. Cloud browser tests use simulated layout sizes and a synthetic microphone, not your phone's hardware. Recording may be interrupted if you switch apps or lock the screen; keep the recording screen open until you stop and save.
+Phase 1 hardware behavior has been verified by the owner. Cloud backup tests use simulated mobile layout/touch and a synthetic microphone; the owner's download/file-picker checks remain necessary. Recording may be interrupted if you switch apps or lock the screen; keep the recording screen open until you stop and save.
 
 ## Important data limits
 
@@ -98,7 +99,7 @@ The source page now loads `src/style.css` directly through an HTML stylesheet li
 
 If you have the earlier preview open, refresh it at the same address. **Do not clear browser/site data to refresh the appearance:** that would erase your saved entries. Vite development, source-file previews, and production builds now load the same stylesheet. Installable/offline operation still requires the production build.
 
-The updated suite has 22 passing tests: the original 10, eight appearance checks, one source-preview interaction check, and three startup-failure checks. These appearance tests inspect actual computed styles and capture screenshots. The custom source-preview test is a normal HTTP server mounted at a nested address; it is not the Codex Index panel.
+The earlier stylesheet fix added appearance and source-preview checks. These appearance tests inspect actual computed styles and capture screenshots. The custom source-preview test is a normal HTTP server mounted at a nested address; it is not the Codex Index panel. The current full suite has 33 tests, including Pages and backup checks.
 
 On Windows, install the free test browser once and run the tests:
 
@@ -125,9 +126,11 @@ Main files:
 | `src/style.css`, `src/theme.css` | Layout, colors, and touch-friendly controls |
 | `src/main.js` | Capture, recording, history, editing, and settings |
 | `src/storage.js` | Local database; separate original text and audio |
+| `src/backup.js`, `src/backup-ui.js` | Portable backup validation, merge planning, atomic restoration, and Settings controls |
 | `public/manifest.webmanifest` | Home-screen installation details |
 | `vite.config.js` | Production build and offline file caching |
 | `tests/foundation.spec.js` | Automated browser tests |
+| `tests/backup.spec.js` | Audio/text restore, duplicates, corruption, offline, chunking, and rollback tests |
 
 To request a change through Codex, describe the visible behavior you want, for example: “Make the recording button larger on Android; preserve saving and mode separation.” Changes to text and appearance are straightforward. Database format changes should include a migration plan so older records survive.
 
@@ -136,6 +139,16 @@ To request a change through Codex, describe the visible behavior you want, for e
 1. **Foundation:** test capture, saving, editing, and installation on your devices.
 2. **Organization:** deterministic categories, explicit field extraction, search, and concise summaries.
 3. **Tasks and reminders:** due dates, completed archive, in-app alerts, and honest notification limits.
-4. **Advanced features:** complete audio-inclusive backups, restore validation/deduplication, historical summaries, trends, and privacy improvements.
+4. **Advanced features:** historical summaries, trends, and privacy improvements. Audio-inclusive backups and restore validation/deduplication are delivered in Phase 2A.
 
-The next essential approval is where to publish the static app for secure Android access. No paid service or major architectural change is needed for the current foundation.
+GitHub Pages deployment is already authorized and working. No paid service or major architectural change is needed for backups.
+
+## Backup format and safety
+
+Version 1 `.dtbackup` layout: 8-byte `DTLTBK01` signature, little-endian uint32 manifest length, 32-byte SHA-256 manifest digest, UTF-8 JSON manifest, then original audio bytes in entry order. The manifest contains all non-audio entry fields, backup time, and each recording's size, MIME type, and SHA-256 hashes for 1 MiB chunks. It is uncompressed and unencrypted. Integrity checks detect corruption, not malicious authorship.
+
+Export and validation read bounded audio slices and compose/slice Blobs, avoiding whole-audio ArrayBuffers and base64 copies. Metadata is bounded to 8 MiB; backups are limited to 2 GiB and 10,000 entries. The browser's storage/download buffers are outside this guarantee. The large-file test uses a 12 MiB + 17-byte fixture, not a physical 2 GiB phone download.
+
+Merge skips identical IDs/content; differing content at the same ID receives a deterministic content-derived ID so repeated imports do not multiply copies. Preview fingerprints include metadata and exact audio checksums. Current app writes share a Web Lock where available. Restore rechecks the reviewed snapshot, then performs optional clear and all additions in one IndexedDB transaction; duplicates or storage errors abort the whole operation. Close other app tabs during restore, especially older app versions that do not participate in the lock.
+
+Preferences and permissions are device settings and are excluded from journal backups. No new runtime dependencies, external requests, or schema migrations are introduced.

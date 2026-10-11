@@ -31,10 +31,41 @@ async function transaction(mode, operation) {
   });
 }
 
-export const saveEntry = entry => transaction('readwrite', store => store.put(entry));
-export const deleteEntry = id => transaction('readwrite', store => store.delete(id));
+export const withEntryLock = action => navigator.locks
+  ? navigator.locks.request('dual-track-entries', action) : action();
+export const saveEntry = entry => withEntryLock(() => transaction('readwrite', store => store.put(entry)));
+export const deleteEntry = id => withEntryLock(() => transaction('readwrite', store => store.delete(id)));
 export const getEntry = id => transaction('readonly', store => store.get(id));
+export const readAllEntries = () => transaction('readonly', store => store.getAll());
 export async function listEntries(mode) {
   const entries = await transaction('readonly', store => store.index('mode').getAll(mode));
   return entries.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+// Compare a snapshot without reading audio bytes into memory. All current app
+// writes share the lock; this also catches ordinary changes from older tabs.
+export function snapshotToken(entries) {
+  return JSON.stringify(entries.map(({ audio, ...data }) => ({ data,
+    audio: audio ? { size: audio.size, type: audio.type } : null
+  })).sort((a, b) => a.data.id.localeCompare(b.data.id)));
+}
+
+export async function applyRestore(expected, additions, replace) {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('entries', 'readwrite');
+    const store = tx.objectStore('entries');
+    let problem;
+    const read = store.getAll();
+    read.onsuccess = () => {
+      try {
+        if (snapshotToken(read.result) !== expected) throw new Error('Records changed in another tab. Review the backup again before restoring.');
+        if (replace) store.clear();
+        // add(), never put(): an unexpected duplicate aborts the WHOLE restore.
+        for (const entry of additions) store.add(entry);
+      } catch (error) { problem = error; tx.abort(); }
+    };
+    tx.oncomplete = () => resolve();
+    tx.onabort = tx.onerror = () => reject(problem || tx.error || new Error('Restore failed. Existing records were not changed.'));
+  });
 }
