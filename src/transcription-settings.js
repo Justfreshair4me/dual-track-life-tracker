@@ -31,7 +31,7 @@ export function initTranscriptionSettings({ canConfigure, setBusy, changed }) {
   select.addEventListener('change', async () => {
     const next = select.value;
     if (working || !canConfigure()) { select.value = mode; status.textContent = 'Finish your recording and save or discard the draft before changing transcription.'; return; }
-    if (next === 'online' && mode !== 'online' && !confirm('Enable browser-service transcription? Your browser may send live microphone speech to an external recognition provider (commonly Google in Chrome). The app cannot control that provider’s retention or processing. This is not guaranteed offline or private. Enabling applies to future recordings until you turn it off. Microphone permission alone is not this consent. Do not use confidential work information without authorization. Enable?')) { select.value = mode; return; }
+    if (next === 'online' && mode !== 'online' && !confirm('Enable browser-service transcription? Your browser may send live microphone speech to an external recognition provider (commonly Google in Chrome). The app cannot control that provider’s retention or processing. This is not guaranteed offline or private. Enabling applies to future recordings and separate-note dictation until you turn it off. Microphone permission alone is not this consent. Do not use confidential work information without authorization. Enable?')) { select.value = mode; return; }
     if (next === 'local') { await enableLocal(); return; }
     status.textContent = next === 'off' ? 'Transcription is off. Recording stays local and Stop saves audio as before.' : 'Browser-service transcription enabled by your consent. Future recordings may send speech externally. Turn Off to revoke this choice.';
     save(next);

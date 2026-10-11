@@ -32,13 +32,14 @@
             <p id="record-status">Tap the microphone to record a memory.</p>
             <p id="transcription-policy">Transcription is off. Optional methods are in Settings.</p>
             <p id="transcription-status" role="status" aria-live="polite"></p>
+            <details id="speech-diagnostics" hidden><summary>Speech diagnostics — no speech content</summary><p>This temporary, local timeline contains event names, relative times, readiness flags, and error codes. It contains no transcript, recording, note, device identifier, or absolute date. It is not saved in entries, backups, or sent anywhere.</p><pre id="speech-diagnostics-data"></pre></details>
             <button id="finish-without-transcript" type="button" class="secondary" hidden>Continue without waiting</button>
             <div id="record-controls" hidden><span id="timer" role="timer">00:00</span><button id="stop-recording" class="primary">Stop & save recording</button><button id="cancel-recording" class="secondary">Cancel recording</button></div>
             <div class="divider"><span>or type an entry</span></div>
             <form id="entry-form">
               <label for="entry-text">Your note <span class="optional">optional with a recording</span></label>
               <textarea id="entry-text" rows="4" maxlength="50000" placeholder="An idea, a good conversation, something worth remembering…" disabled></textarea>
-              <div id="audio-draft" hidden><p>Your original recording is ready. Review your note, then Save entry. This draft is not saved yet.</p><audio id="draft-player" controls></audio><button id="discard-draft" type="button" class="secondary">Discard unsaved recording and note</button></div>
+              <div id="audio-draft" hidden><p>Your original recording is ready. Review your note, then Save entry. This draft is not saved yet.</p><audio id="draft-player" controls></audio><div id="separate-dictation-help" hidden><p>If recognition failed while recording, try dictating a NEW note after stopping. This does not transcribe the saved recording. With Browser service selected, this NEW live speech may be sent to an external recognition provider; it is not guaranteed private or offline. Only tap if you agree. This separate attempt may also fail if recognition itself is unavailable.</p><button id="dictate-separate-note" type="button" class="secondary">Dictate a new note after recording</button></div><div id="separate-note-controls" hidden><p>Original recording is stopped and retained. Speak again to dictate a new note, then finish.</p><button id="finish-separate-note" type="button" class="secondary">Finish note dictation</button></div><button id="discard-draft" type="button" class="secondary">Discard unsaved recording and note</button></div>
               <div class="form-footer"><span id="save-hint">Waiting for local storage</span><button id="save-entry" class="primary" type="submit" disabled>Save entry <span aria-hidden="true">↗</span></button></div>
             </form>
           </div>

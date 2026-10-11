@@ -29,9 +29,9 @@ English (US) is the initial recognition language. No service account or paid API
 ## Record, review, and save
 
 1. Choose **Personal** or **Work** before recording. Optionally type context in Your note.
-2. Tap the microphone and allow microphone access if prompted. When recognition is enabled, wait for “Listening for speech” before speaking. Recognition listens alongside the independent original-audio recorder.
+2. Tap the microphone and allow microphone access if prompted. When recognition is enabled, wait for “Recognition microphone ready” before speaking. Recognition listens alongside the independent original-audio recorder.
 3. Speak a short fictional note, then tap **Stop & review**. The app automatically asks recognition to finish; no extra transcription button is required.
-4. While **Processing transcription** is displayed, the original recording remains available. A slow service is bounded to eight seconds. You can click **Continue without waiting** sooner; this stops recognition and keeps audio plus any partial text for review.
+4. While **Processing transcription** is displayed, the original recording remains available. A slow service is bounded to eight seconds; recording tracks stay alive briefly for pending recognition results, then are released. Original audio has already stopped recording. You can click **Continue without waiting** sooner; this stops recognition and keeps audio plus any partial text for review.
 5. Review the editable **Your note** field. Correct mistakes and add context. If recognition is unsuccessful/unavailable, type manually or save audio only. Partial transcripts are labeled; do not assume every spoken word was captured.
 6. Listen to the original recording using its playback control, then click **Save entry**. The edited note, raw recognized text, status, and unchanged original audio are stored locally in the selected mode.
 7. Open the entry in **History** to read/play it. **Original text** preserves the note/transcript before correction; backup export also includes raw transcription metadata and original audio.
@@ -41,7 +41,7 @@ The review draft is **not saved until Save entry succeeds**. Closing/reloading w
 ## Important limits
 
 - This feature recognizes **live microphone speech**, then finishes at Stop. It does not transcribe existing recordings or imported backups. Experimental audio-track input cannot be assumed reliable across Android Chrome and Brave, so the app does not use it.
-- Android recognition may stop after silence even when continuous mode is requested. The app flags an early ending and retains the recording. It does not silently restart listening or resend a recording. Use short notes and check results.
+- Android uses a single-utterance request because native continuous dictation is unreliable. Recognition can finish before the audio recording stops. The app flags an early ending and retains the recording. It does not silently restart listening or resend a recording. Use short notes and check results.
 - Some browser/device combinations cannot support recognition and recording together reliably. Mic interruptions may produce incomplete audio. Check playback during your first tests; turn transcription Off if this happens. This cannot be established by simulated browser tests.
 - Local-only means the app requires the browser's local-processing API, with no remote fallback. Model downloads use internet. Installed-pack performance and actual offline operation need device testing; experimental API availability is not an accuracy guarantee.
 - Browser-service recognition may fail offline, after a permission denial, due to managed-device policy, or when its provider is unavailable. Original recording and manual text remain usable.
@@ -60,3 +60,7 @@ The review draft is **not saved until Save entry succeeds**. Closing/reloading w
 8. Turn transcription Off again if you do not want future speech sent to a provider. Check a new recording still saves normally. If recognition or audio capture fails on your phone, report the browser/version, status message, and whether playback works—without sharing sensitive recordings.
 
 Automated tests use synthetic microphone audio and a simulated recognition provider. They verify application behavior, not actual speech accuracy, local-model performance, external-provider privacy, or Chrome/Brave hardware compatibility.
+
+## Android early-disconnection follow-up
+
+The owner's real Android Chrome test found clear audio but no concurrent transcript. [Android troubleshooting](ANDROID-SPEECH.md) explains the investigation, diagnostic timeline, focused stop-order fix, and an explicit **Dictate a new note after recording** fallback. The fallback uses NEW speech after recording tracks stop and preserves the original recording. It does not transcribe that file. Please run the comparison test on your phone; automated simulations do not establish that Android capture contention or provider behavior has been fixed.

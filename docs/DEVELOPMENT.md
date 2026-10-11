@@ -2,7 +2,7 @@
 
 These instructions are for a developer or a personal computer where software installation is permitted. The browser-only GitHub Pages instructions in the main README are the normal user path. No terminal or software installation is needed to use the hosted app.
 
-The Vite base is `/dual-track-life-tracker/`. Append that path to local preview/development addresses. The standard test suite runs the production build at this same path, and the current suite contains 55 checks. `npm run verify:preview` defaults to `http://127.0.0.1:5173/dual-track-life-tracker/`. The database name, version, object store, and entry schema remain unchanged.
+The Vite base is `/dual-track-life-tracker/`. Append that path to local preview/development addresses. The standard test suite runs the production build at this same path, and the current suite contains 62 checks. `npm run verify:preview` defaults to `http://127.0.0.1:5173/dual-track-life-tracker/`. The database name, version, object store, and entry schema remain unchanged.
 
 A free, local-first memory app for Personal and Work notes. No account, credit card, subscription, AI API, analytics, or cloud database is required. HTML defines the screens, CSS controls their appearance, and JavaScript handles recording and saving. Vite is the free development/build tool; IndexedDB is the browser's built-in database. There are no runtime packages loaded from external websites.
 
@@ -99,7 +99,7 @@ The source page now loads `src/style.css` directly through an HTML stylesheet li
 
 If you have the earlier preview open, refresh it at the same address. **Do not clear browser/site data to refresh the appearance:** that would erase your saved entries. Vite development, source-file previews, and production builds now load the same stylesheet. Installable/offline operation still requires the production build.
 
-The earlier stylesheet fix added appearance and source-preview checks. These appearance tests inspect actual computed styles and capture screenshots. The custom source-preview test is a normal HTTP server mounted at a nested address; it is not the Codex Index panel. The current full suite has 55 tests, including Pages and backup checks.
+The earlier stylesheet fix added appearance and source-preview checks. These appearance tests inspect actual computed styles and capture screenshots. The custom source-preview test is a normal HTTP server mounted at a nested address; it is not the Codex Index panel. The current full suite has 62 tests, including Pages and backup checks.
 
 On Windows, install the free test browser once and run the tests:
 
@@ -157,8 +157,16 @@ Preferences and permissions are device settings and are excluded from journal ba
 
 `src/transcription.js` wraps the browser's live microphone recognition API. It does not accept a Blob or replay saved recordings into recognition. Local mode checks API support and forces `processLocally = true`; it never switches to remote mode. Browser-service mode is enabled only by the Settings consent flow. Its device preference is excluded from journal backups. The app has no service API key, model dependency, or cloud endpoint.
 
-Recognition starts while MediaRecorder captures original audio. Stop flushes MediaRecorder, requests final recognition results, and bounds that wait to eight seconds. Early end, interim-only results, errors, and timeout are exposed as incomplete/failed outcomes. There is no automatic recognition restart after silence. With recognition enabled, the audio draft and editable text wait for explicit Save. With recognition off, the Phase 1 automatic save behavior remains. Pending drafts warn on tab closure; they are not crash-proof or durable until Save succeeds.
+Recognition starts while MediaRecorder captures original audio. Stop requests final recognition results before stopping MediaRecorder, and bounds that wait to eight seconds. Capture tracks are released after recognition completes/aborts/times out, protecting pending final results. Android uses a single-utterance request; other simultaneous-capture behavior remains device-dependent. Early end, interim-only results, errors, and timeout are exposed as incomplete/failed outcomes. There is no automatic recognition restart after silence. With recognition enabled, the audio draft and editable text wait for explicit Save. With recognition off, the Phase 1 automatic save behavior remains. Pending drafts warn on tab closure; they are not crash-proof or durable until Save succeeds.
 
 Optional entry `transcription` metadata contains provider, language, status, rawText, reason, and completion time. `text` contains the user's reviewed note; `originalText` preserves the combined note/transcript before correction. Original audio is never replaced by transcription. Existing version-1 backup validation preserves these additional fields.
 
 `tests/speech-provider.js` supplies a simulated constructor only inside isolated browser tests. It is not imported by application code or included in dist/offline caches. Tests never exercise a real recognition network. Physical Android simultaneous microphone access, recognition accuracy, provider policy, and installed local models remain manual checks. The offline-update test installs an older shell-cache variant, verifies the new worker waits, then closes/reopens the app and checks existing IndexedDB records offline.
+
+## Android recognition diagnostics and separate-note fallback
+
+See [the Android troubleshooting guide](ANDROID-SPEECH.md) for evidence, hypotheses, sources, and physical-device instructions. Session `start` is distinguished from `audiostart` readiness. No audioTrack overload is assumed on Android. Starting recognition before getUserMedia was considered but would still create two captures and could disturb the working recording flow; recorder-first remains.
+
+A local, ephemeral diagnostic callback emits only fixed event names, relative times, provider/purpose, platform/visibility/connectivity booleans, state flags, and allowlisted error/exception codes. It never receives raw recognition text in the diagnostic payload. Data is excluded from saved records/backups and not sent or logged to the console. Startup/recent shutdown events are bounded to 40.
+
+The separate-note button explicitly starts one recognition-only attempt after all recording tracks are released and original playback is paused. It appends new speech, retains corrected note text and original audio, and saves nested `transcription.separateNote` metadata with source `new-dictation-after-recording`. It is not file transcription. Listening is bounded to 30 seconds with an explicit Finish button and the existing eight-second completion bound. The same privacy preference/consent applies; no automatic retry or remote fallback occurs.
