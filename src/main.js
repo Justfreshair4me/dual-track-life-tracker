@@ -16,6 +16,13 @@ let transcriptionDraft;
 let originalDraft;
 let transcriptionSession;
 let processingTranscript = false;
+let separateDictationUsed = false;
+let speechDiagnostics = [];
+function showSpeechDiagnostic(index, trace) {
+  speechDiagnostics[index] = trace;
+  $('speech-diagnostics').hidden = false;
+  $('speech-diagnostics-data').textContent = JSON.stringify(speechDiagnostics, null, 2);
+}
 let draftUrl;
 let detailUrl;
 let selectedEntry;
@@ -46,6 +53,9 @@ function updateControls() {
   $('transcription-mode').disabled = !storageReady || busy || hasDraft();
   $('enable-local').disabled = !storageReady || busy || hasDraft() || !localSupported();
   $('discard-draft').disabled = busy || recording || processingTranscript;
+  // Do not feed our own playback into a still-active recognition microphone.
+  $('draft-player').controls = !processingTranscript;
+  $('dictate-separate-note').disabled = busy || recording || processingTranscript || separateDictationUsed;
   $('save-hint').textContent = storageReady ? `Saving to ${labelMode()}${hasDraft() ? ' · clear or save to switch' : ''}` : 'Local storage is not ready';
 }
 function entryCard(entry) {
@@ -107,6 +117,9 @@ function clearAudioDraft() {
   if (draftUrl) URL.revokeObjectURL(draftUrl);
   draftUrl = undefined;
   audioDraft = undefined;
+  separateDictationUsed = false;
+  $('separate-note-controls').hidden = true;
+  $('separate-dictation-help').hidden = true;
   transcriptionDraft = originalDraft = undefined;
   $('draft-player').removeAttribute('src');
   $('audio-draft').hidden = true;
@@ -132,10 +145,12 @@ async function saveDraft() {
   } catch (error) { failure(error); }
   finally { busy = false; updateControls(); }
 }
-function releaseStream() {
+function releaseStream(stopTracks = true) {
   clearInterval(timer);
-  stream?.getTracks().forEach(track => track.stop());
-  stream = undefined;
+  if (stopTracks) {
+    stream?.getTracks().forEach(track => track.stop());
+    stream = undefined;
+  }
   recording = false;
   $('record-controls').hidden = true;
   $('record').classList.remove('recording');
@@ -149,12 +164,15 @@ async function startRecording() {
   let chunks = [];
   let canceled = false;
   const speechMode = transcriptionMode();
+  separateDictationUsed = false;
+  speechDiagnostics = [];
+  $('speech-diagnostics').hidden = true;
   let typedBeforeRecording = $('entry-text').value;
   $('transcription-status').textContent = speechMode === 'off' ? 'Transcription is off. Your recording stays local.' : 'Preparing transcription…';
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getAudioTracks().forEach(track => {
-      track.onmute = () => { if (recording) $('record-status').textContent = 'The microphone was muted by the browser or another app. Audio may be incomplete. Stop and check playback.'; };
+      track.onmute = () => { if (recording) { transcriptionSession?.noteRecorderEvent('recorder-muted'); $('record-status').textContent = 'The microphone was muted by the browser or another app. Audio may be incomplete. Stop and check playback.'; } };
     });
     const type = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find(t => MediaRecorder.isTypeSupported(t));
     recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
@@ -164,13 +182,18 @@ async function startRecording() {
       const mimeType = recorder.mimeType;
       // Lock review controls before releasing the recorder's microphone.
       processingTranscript = !canceled && speechMode !== 'off';
-      releaseStream();
+      if (!canceled) transcriptionSession?.requestStop();
+      // MediaRecorder has flushed the original audio. Keep its capture tracks
+      // alive briefly until recognition finishes, so releasing the shared
+      // browser/device capture cannot interrupt pending final speech results.
+      releaseStream(canceled || speechMode === 'off');
       if (canceled) { transcriptionSession?.cancel(); transcriptionSession = undefined; $('transcription-status').textContent = 'Recording and transcription canceled.'; message('Recording canceled. Nothing was saved.'); return; }
       audioDraft = new Blob(chunks, { type: mimeType });
-      if (!audioDraft.size) { audioDraft = undefined; transcriptionSession?.cancel(); processingTranscript = false; updateControls(); message('No audio was captured. Please try again.', true); return; }
+      if (!audioDraft.size) { audioDraft = undefined; transcriptionSession?.cancel(); releaseStream(); processingTranscript = false; updateControls(); message('No audio was captured. Please try again.', true); return; }
       draftUrl = URL.createObjectURL(audioDraft);
       $('draft-player').src = draftUrl;
       $('audio-draft').hidden = false;
+      transcriptionSession?.noteRecorderEvent('recording-ready');
       updateControls();
       if (speechMode === 'off') { await saveDraft(); return; }
       $('finish-without-transcript').hidden = false;
@@ -189,9 +212,12 @@ async function startRecording() {
         $('entry-text').value = typedBeforeRecording;
         $('transcription-status').textContent = 'Transcription unsuccessful. Your original audio is retained. Add text manually and Save entry.';
       } finally {
+        transcriptionSession?.noteRecorderEvent('recorder-tracks-released');
+        releaseStream();
         processingTranscript = false;
         transcriptionSession = undefined;
         $('finish-without-transcript').hidden = true;
+        $('separate-dictation-help').hidden = false;
         updateControls();
         $('entry-text').scrollIntoView({ block: 'center' });
         message('Recording ready for review. It is not saved until you click Save entry.');
@@ -208,11 +234,18 @@ async function startRecording() {
     };
     $('stop-recording').onclick = () => {
       $('stop-recording').disabled = $('cancel-recording').disabled = true;
+      // Request final speech results BEFORE stopping/releasing recording tracks.
+      transcriptionSession?.requestStop();
+      transcriptionSession?.noteRecorderEvent('recorder-stop-request');
       if (recorder.state !== 'inactive') recorder.stop();
     };
     recorder.start(1000);
     recording = true;
-    if (speechMode !== 'off') transcriptionSession = startTranscription(speechMode, text => { $('transcription-status').textContent = text; });
+    if (speechMode !== 'off') {
+      transcriptionSession = startTranscription(speechMode, text => { $('transcription-status').textContent = text; }, {
+        diagnostic: trace => showSpeechDiagnostic(0, trace), recorderActiveAtStart: recorder.state === 'recording'
+      });
+    }
     $('stop-recording').disabled = $('cancel-recording').disabled = false;
     $('record-controls').hidden = false;
     $('record').classList.add('recording');
@@ -290,6 +323,39 @@ $('entry-text').addEventListener('input', updateControls);
 $('personal').addEventListener('click', () => changeMode('personal'));
 $('work').addEventListener('click', () => changeMode('work'));
 $('record').addEventListener('click', startRecording);
+$('draft-player').addEventListener('play', () => { if (processingTranscript) $('draft-player').pause(); });
+$('dictate-separate-note').addEventListener('click', async () => {
+  if (!audioDraft || busy || recording || processingTranscript || separateDictationUsed || transcriptionMode() === 'off') return;
+  // Original recording tracks have already been released. Pause playback so
+  // recognition hears the new note rather than the saved recording's speaker.
+  $('draft-player').pause();
+  separateDictationUsed = true;
+  const beforeDictation = $('entry-text').value;
+  processingTranscript = true;
+  updateControls();
+  $('separate-note-controls').hidden = false;
+  $('finish-without-transcript').hidden = false;
+  transcriptionSession = startTranscription(transcriptionMode(), text => { $('transcription-status').textContent = text; }, {
+    purpose: 'separate-note', diagnostic: trace => showSpeechDiagnostic(1, trace)
+  });
+  try {
+    const outcome = await transcriptionSession.waitForEnd();
+    transcriptionDraft = { ...transcriptionDraft, separateNote: { ...outcome, source: 'new-dictation-after-recording' } };
+    $('entry-text').value = [beforeDictation, outcome.rawText].filter(Boolean).join('\n\n').slice(0, 50000);
+    originalDraft = [originalDraft, outcome.rawText].filter(Boolean).join('\n\n').slice(0, 50000);
+    $('transcription-status').textContent = outcome.rawText
+      ? `Separate note dictation ${outcome.status === 'success' ? 'complete' : 'partial'}. Review the appended text. ${outcome.reason} This was new speech, not transcription of the recording. Original audio is retained; Save entry when ready.`
+      : `Separate note dictation unsuccessful. ${outcome.reason} Add text manually. Original audio and your existing draft text are retained.`;
+  } catch { $('transcription-status').textContent = 'Separate note dictation could not finish. Add text manually; your original audio and existing text are retained.'; }
+  finally {
+    processingTranscript = false;
+    transcriptionSession = undefined;
+    $('separate-note-controls').hidden = $('finish-without-transcript').hidden = true;
+    updateControls();
+    $('entry-text').scrollIntoView({ block: 'center' });
+  }
+});
+$('finish-separate-note').addEventListener('click', () => transcriptionSession?.requestStop());
 $('finish-without-transcript').addEventListener('click', () => { if (processingTranscript) transcriptionSession?.cancel(); });
 $('discard-draft').addEventListener('click', () => {
   if (busy || recording || processingTranscript || !confirm('Discard this unsaved recording and note? Nothing from this draft can be recovered.')) return;
@@ -345,7 +411,7 @@ try {
       const selected = transcriptionMode();
       $('stop-recording').textContent = selected === 'off' ? 'Stop & save recording' : 'Stop & review';
       $('transcription-policy').textContent = selected === 'online'
-        ? 'Browser-service transcription enabled: speech may be sent externally while recording. Change this in Settings.'
+        ? 'Browser-service transcription enabled: speech may be sent externally while recording or dictating a separate note. Change this in Settings.'
         : selected === 'local' ? 'On-device transcription selected. Local processing is required; no remote fallback. Review text after stopping.'
           : 'Transcription is off. Enable an optional method in Settings; audio recording stays local.';
       updateControls();
