@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { playStoredAudio } from './audio-helpers.js';
 
 async function note(page, text, mode = 'personal') {
   await page.getByRole('link', { name: 'Home', exact: true }).click();
@@ -165,10 +166,32 @@ test('real recorded audio is exported, restored, and playable; corrupted audio i
   await phone.locator('#confirm-restore').click();
   await expect(phone.locator('#backup-status')).toContainText('Restore complete');
   expect(await rows(phone)).toEqual(before);
+  // Exercise slower storage like a busy CI runner. Clicking an entry does not
+  // await the async IndexedDB read that assigns the audio source and opens it.
+  await phone.evaluate(() => {
+    const completion = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete');
+    Object.defineProperty(IDBTransaction.prototype, 'oncomplete', {
+      ...completion,
+      set(handler) {
+        completion.set.call(this, typeof handler !== 'function' ? handler : function (event) {
+          if (this.mode === 'readonly') setTimeout(() => handler.call(this, event), 1000);
+          else handler.call(this, event);
+        });
+      }
+    });
+  });
   await phone.getByRole('link', { name: 'History', exact: true }).click();
+  const beforeReady = await phone.evaluate(() => {
+    document.querySelector('#history-list .entry-card').click();
+    return { open: document.getElementById('entry-dialog').open,
+      source: document.getElementById('detail-audio').getAttribute('src') };
+  });
+  expect(beforeReady).toEqual({ open: false, source: null });
+  await playStoredAudio(phone);
+  await phone.locator('#close-detail').click();
+  // Also exercise the normal browser click and reopening the same recording.
   await phone.locator('#history-list .entry-card').click();
-  await phone.locator('#detail-audio').evaluate(audio => audio.play());
-  await expect.poll(() => phone.locator('#detail-audio').evaluate(audio => audio.currentTime)).toBeGreaterThan(0);
+  await playStoredAudio(phone);
   await phone.locator('#close-detail').click();
   const corrupt = Buffer.from(bytes); corrupt[corrupt.length - 1] ^= 1;
   await importFile(phone, corrupt);

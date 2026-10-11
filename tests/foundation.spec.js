@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { playStoredAudio } from './audio-helpers.js';
 
 async function writeNote(page, text) {
   await page.locator('#entry-text').fill(text);
@@ -100,8 +101,7 @@ test('recording saves a real audio blob, plays back, persists, and cancellation 
   expect(saved[0].audioSize).toBeGreaterThan(100);
   await page.reload();
   await page.locator('#recent-list .entry-card').click();
-  await page.locator('#detail-audio').evaluate(audio => audio.play());
-  await expect.poll(() => page.locator('#detail-audio').evaluate(audio => audio.currentTime)).toBeGreaterThan(0);
+  await playStoredAudio(page);
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await page.getByRole('button', { name: 'Start microphone recording' }).click();
   await expect(page.locator('#record-status')).toContainText('Recording locally');
