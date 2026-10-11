@@ -1,12 +1,12 @@
-# Dual-Track Life Tracker — Phase 1 + Phase 2A Backups
+# Dual-Track Life Tracker — Phase 1 + Phase 2A Backups + Phase 2B Transcription
 
-A free memory app for Personal and Work notes. Notes and microphone recordings stay in your device's browser using IndexedDB. No paid APIs, subscriptions, analytics, cloud database, credit card, or additional app account are required.
+A free memory app for Personal and Work notes. Saved notes and original recordings stay in your device's browser using IndexedDB. Transcription is off by default; the optional browser-service method may send live speech externally after your informed consent. No paid APIs, subscriptions, analytics, cloud database, credit card, or additional app account are required.
 
 **Application address after deployment:**
 
 https://justfreshair4me.github.io/dual-track-life-tracker/
 
-You can use Chrome on your Windows laptop without installing Node.js, opening a terminal, or downloading the project. The public website contains application code, not your journal records. GitHub serves the app files and may log ordinary website requests; the app does not upload your entries or audio.
+You can use Chrome on your Windows laptop without installing Node.js, opening a terminal, or downloading the project. The public website contains application code, not your journal records. GitHub serves the app files and may log ordinary website requests; saved entries and backup files are not uploaded by the app. If you explicitly enable browser-service transcription, your browser may send live microphone speech to its recognition provider.
 
 ## Enable GitHub Pages — browser only
 
@@ -33,7 +33,7 @@ Use fictional or disposable entries while testing. **Settings → Backup & resto
 4. Switch to **Work**. The Personal note should disappear from this mode. Return to **Home**, save “Fictional Orion project meeting,” and open History again. Work should show only the Work note.
 5. Reload the tab. Personal is selected by default, and your Personal note should still exist. Switch to Work to see the saved Work note. Close/reopen the same address in the same browser and check again.
 6. In **Settings**, try **Light**, **Dark**, and **Use device setting**.
-7. If your browser allows microphone access, tap the microphone and click **Allow** when prompted. Speak a fictional memory, then click **Stop & save recording**. Open it in History and listen. Cancel discards the recording. Denying permission still allows typed notes.
+7. If your browser allows microphone access, tap the microphone and click **Allow** when prompted. Speak a fictional memory, then click **Stop & save recording**. Open it in History and listen. With transcription off, Cancel discards the recording and Stop saves it as before. With transcription enabled, Stop & review shows an editable unsaved draft; click Save entry after reviewing. Denying permission still allows typed notes. See the [speech-to-text guide](docs/TRANSCRIPTION.md) before enabling a method.
 
 ## Android and offline use
 
@@ -59,12 +59,14 @@ Phase 1 includes mobile/desktop layouts, mode switching, typed entries, local au
 
 Phase 2A adds complete local backup downloads, validated restoration, a review screen, safe merging, and explicitly confirmed replacement. No database migration is needed. Backups include both modes regardless of the currently selected mode. Original text, edited text, metadata, and original audio are preserved.
 
-Transcription, categorization, search, summaries, tasks, reminders, and trends remain later work. No other Phase 2 features are included.
+Phase 2B adds optional live browser recognition, explicitly confirmed browser-service consent, experimental local-only language-pack checks, and editable transcript review. Original audio and raw transcript remain separate from corrected text. No schema migration is needed; transcription metadata is an optional entry field and is included in backups.
+
+Categorization, search, summaries, tasks, reminders, and trends remain later work. No Phase 3 features are included.
 
 ## Validation and maintenance
 
-The production build and all **33 automated browser tests** pass using the /dual-track-life-tracker/ path. Checks include asset paths/content types, manifest/icons, offline-worker scope, saving, History, persistence, mode separation, recording/playback, edits/deletion, mobile/desktop themes, and startup failures. Nine backup tests cover text/original-text metadata, transfer between separate browser profiles, playable restored audio, duplicate conflicts, confirmed replacement/cancellation, damaged files, changes after review, offline operation, chunked audio processing, and rollback on storage failure. No test changes the user's browser data.
+The production build and all **55 automated browser tests** pass using the /dual-track-life-tracker/ path. Checks include asset paths/content types, manifest/icons, offline-worker scope, saving, History, persistence, mode separation, recording/playback, edits/deletion, mobile/desktop themes, and startup failures. Nine backup tests cover text/original-text metadata, transfer between separate browser profiles, playable restored audio, duplicate conflicts, confirmed replacement/cancellation, damaged files, changes after review, offline operation, chunked audio processing, and rollback on storage failure. Twenty-one simulated-recognition tests cover consent, transcript review/corrections, audio integrity, mode separation, backup transfer/playback, unsupported browsers, network/permission/start errors, early endings, missing speech, language-pack failures, timeout/cancellation, save retry, and offline behavior. Another test verifies offline-worker updates preserve saved entries. No test contacts a real speech service or changes the user's browser data.
 
-Phase 1 has been manually verified by the owner on Windows and Android. The new backup features have been tested in isolated Chromium browsers, including a mobile-sized touch context; physical Android download/file-picker behavior and company browser restrictions still need the owner's testing after deployment. A 12 MB recording fixture checks bounded audio reads; a 2 GB backup has not been tested on a physical phone.
+Phase 1 has been manually verified by the owner on Windows and Android. The backup and transcription interfaces have been tested in isolated Chromium browsers, including a mobile-sized touch context; Physical Android speech recognition, its interaction with microphone recording, local model performance, and company browser restrictions still need the owner's testing after deployment. The owner already verified Android backup transfer between Brave and Chrome. A 12 MB recording fixture checks bounded audio reads; a 2 GB backup has not been tested on a physical phone.
 
 For technical maintenance, see [developer notes](docs/DEVELOPMENT.md). The [deployment workflow](.github/workflows/pages.yml) installs dependencies, tests, builds dist, and deploys static files. The database schema and journal data format are unchanged.

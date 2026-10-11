@@ -2,7 +2,7 @@
 
 These instructions are for a developer or a personal computer where software installation is permitted. The browser-only GitHub Pages instructions in the main README are the normal user path. No terminal or software installation is needed to use the hosted app.
 
-The Vite base is `/dual-track-life-tracker/`. Append that path to local preview/development addresses. The standard test suite runs the production build at this same path, and the current suite contains 33 checks. `npm run verify:preview` defaults to `http://127.0.0.1:5173/dual-track-life-tracker/`. The database name, version, object store, and entry schema remain unchanged.
+The Vite base is `/dual-track-life-tracker/`. Append that path to local preview/development addresses. The standard test suite runs the production build at this same path, and the current suite contains 55 checks. `npm run verify:preview` defaults to `http://127.0.0.1:5173/dual-track-life-tracker/`. The database name, version, object store, and entry schema remain unchanged.
 
 A free, local-first memory app for Personal and Work notes. No account, credit card, subscription, AI API, analytics, or cloud database is required. HTML defines the screens, CSS controls their appearance, and JavaScript handles recording and saving. Vite is the free development/build tool; IndexedDB is the browser's built-in database. There are no runtime packages loaded from external websites.
 
@@ -18,7 +18,7 @@ A free, local-first memory app for Personal and Work notes. No account, credit c
 - Light/dark themes and an optional request for more durable storage.
 - Phase 2A: local audio-inclusive backups, integrity checks, safe merging, and explicitly confirmed atomic replacement. See [the backup guide](BACKUPS.md).
 
-Recall, Tasks, and Summaries are visibly marked “Coming soon.” Categorization/search, tasks/reminders, and advanced summaries/trends remain later work. Backups were brought forward as the explicitly requested Phase 2A. No transcription is included: common browser speech-recognition services may upload audio and need internet. Local recording does not.
+Recall, Tasks, and Summaries are visibly marked “Coming soon.” Categorization/search, tasks/reminders, and advanced summaries/trends remain later work. Backups were brought forward as the explicitly requested Phase 2A. Phase 2B adds optional transcription. Browser-service recognition may send live speech externally and requires an explicit confirmation; local-only recognition requires supported APIs and a language pack. Recording audio is independent of recognition. See [the speech-to-text guide](TRANSCRIPTION.md).
 
 ## Preview on Windows — step by step
 
@@ -99,7 +99,7 @@ The source page now loads `src/style.css` directly through an HTML stylesheet li
 
 If you have the earlier preview open, refresh it at the same address. **Do not clear browser/site data to refresh the appearance:** that would erase your saved entries. Vite development, source-file previews, and production builds now load the same stylesheet. Installable/offline operation still requires the production build.
 
-The earlier stylesheet fix added appearance and source-preview checks. These appearance tests inspect actual computed styles and capture screenshots. The custom source-preview test is a normal HTTP server mounted at a nested address; it is not the Codex Index panel. The current full suite has 33 tests, including Pages and backup checks.
+The earlier stylesheet fix added appearance and source-preview checks. These appearance tests inspect actual computed styles and capture screenshots. The custom source-preview test is a normal HTTP server mounted at a nested address; it is not the Codex Index panel. The current full suite has 55 tests, including Pages and backup checks.
 
 On Windows, install the free test browser once and run the tests:
 
@@ -152,3 +152,13 @@ Export and validation read bounded audio slices and compose/slice Blobs, avoidin
 Merge skips identical IDs/content; differing content at the same ID receives a deterministic content-derived ID so repeated imports do not multiply copies. Preview fingerprints include metadata and exact audio checksums. Current app writes share a Web Lock where available. Restore rechecks the reviewed snapshot, then performs optional clear and all additions in one IndexedDB transaction; duplicates or storage errors abort the whole operation. Close other app tabs during restore, especially older app versions that do not participate in the lock.
 
 Preferences and permissions are device settings and are excluded from journal backups. No new runtime dependencies, external requests, or schema migrations are introduced.
+
+## Transcription implementation
+
+`src/transcription.js` wraps the browser's live microphone recognition API. It does not accept a Blob or replay saved recordings into recognition. Local mode checks API support and forces `processLocally = true`; it never switches to remote mode. Browser-service mode is enabled only by the Settings consent flow. Its device preference is excluded from journal backups. The app has no service API key, model dependency, or cloud endpoint.
+
+Recognition starts while MediaRecorder captures original audio. Stop flushes MediaRecorder, requests final recognition results, and bounds that wait to eight seconds. Early end, interim-only results, errors, and timeout are exposed as incomplete/failed outcomes. There is no automatic recognition restart after silence. With recognition enabled, the audio draft and editable text wait for explicit Save. With recognition off, the Phase 1 automatic save behavior remains. Pending drafts warn on tab closure; they are not crash-proof or durable until Save succeeds.
+
+Optional entry `transcription` metadata contains provider, language, status, rawText, reason, and completion time. `text` contains the user's reviewed note; `originalText` preserves the combined note/transcript before correction. Original audio is never replaced by transcription. Existing version-1 backup validation preserves these additional fields.
+
+`tests/speech-provider.js` supplies a simulated constructor only inside isolated browser tests. It is not imported by application code or included in dist/offline caches. Tests never exercise a real recognition network. Physical Android simultaneous microphone access, recognition accuracy, provider policy, and installed local models remain manual checks. The offline-update test installs an older shell-cache variant, verifies the new worker waits, then closes/reopens the app and checks existing IndexedDB records offline.
