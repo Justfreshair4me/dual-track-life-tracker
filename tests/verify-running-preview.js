@@ -4,7 +4,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const base = process.env.PREVIEW_URL || 'http://127.0.0.1:5173/';
+const base = process.env.PREVIEW_URL || 'http://127.0.0.1:5173/dual-track-life-tracker/';
 const output = process.env.PREVIEW_REPORT_DIR || 'test-results/running-preview';
 await mkdir(output, { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

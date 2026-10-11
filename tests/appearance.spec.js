@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const sourceURL = 'http://127.0.0.1:4174/preview/dual-track-life-tracker/';
 
-for (const [server, url] of [['production', '/'], ['file-preview', sourceURL]]) {
+for (const [server, url] of [['production', './'], ['file-preview', sourceURL]]) {
   for (const width of [390, 1280]) {
     for (const theme of ['light', 'dark']) {
       test(`${server}: ${width}px ${theme} loads real styles and polished controls`, async ({ page }, testInfo) => {
