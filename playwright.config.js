@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: true,
   workers: 2,
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: 'http://localhost:4173/dual-track-life-tracker/',
     browserName: 'chromium',
     launchOptions: {
       executablePath: process.env.CHROMIUM_PATH || undefined,
@@ -14,7 +14,7 @@ export default defineConfig({
   },
   webServer: [{
     command: 'npm run build && npm run preview -- --port 4173 --strictPort',
-    url: 'http://localhost:4173',
+    url: 'http://localhost:4173/dual-track-life-tracker/',
     reuseExistingServer: false,
     timeout: 60000
   }, {
