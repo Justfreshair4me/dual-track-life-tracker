@@ -1,4 +1,5 @@
 import { openDatabase, saveEntry, listEntries, getEntry, deleteEntry } from './storage.js';
+import { initBackup } from './backup-ui.js';
 
 const $ = id => document.getElementById(id);
 let mode = 'personal';
@@ -278,6 +279,11 @@ try {
   await openDatabase();
   await refresh();
   storageReady = true;
+  initBackup({
+    canOperate: () => storageReady && !busy && !recording && !hasDraft(),
+    setBusy: value => { busy = value; updateControls(); },
+    afterRestore: refresh
+  });
   document.documentElement.dataset.appStatus = 'ready';
   $('app-startup').hidden = true;
 } catch (error) {
