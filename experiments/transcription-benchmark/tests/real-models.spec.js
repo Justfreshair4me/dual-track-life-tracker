@@ -7,7 +7,7 @@ if(process.env.REAL_MODELS==='1'){
   await page.goto('./');await page.locator('#file').setInputFiles(`public/fixtures/${seconds}.wav`);
   for(const model of ['whisper','moonshine']){
    await context.setOffline(false);await page.locator('#model').selectOption(model);page.once('dialog',d=>d.accept());await page.locator('#load').click();
-   await expect(page.locator('#model-status')).toContainText('ready',{timeout:120000});
+   await expect(page.locator('#status')).toContainText(/Ready\.|Model failed:|Worker stopped unexpectedly/,{timeout:120000});if(!(await page.locator('#model-status').textContent()).includes('ready'))throw new Error('Real '+model+' initialization: '+await page.locator('#status').textContent());
    await context.setOffline(true);await page.locator('#run').click();
    await expect(page.locator('.transcript').last()).toContainText(/garden|flowers|book|birds|friend/i,{timeout:180000});
   }
