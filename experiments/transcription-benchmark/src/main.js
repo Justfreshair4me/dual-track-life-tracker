@@ -42,7 +42,7 @@ function controls() {
     recording;
   $("cancel").disabled = !worker;
   $("report").disabled = !results.length;
-  $("save-audio").disabled = busy;
+  $("save-audio").disabled = !clip;
 }
 function sizes() {
   if (!manifest) return;
@@ -363,13 +363,19 @@ $("file").onchange = async () => {
   $("file").value = "";
 };
 $("save-audio").onclick = () => {
-  const ext = clip.blob.type.includes("mp4")
-    ? "m4a"
-    : clip.blob.type.includes("ogg")
-      ? "ogg"
-      : clip.blob.type.includes("wav")
-        ? "wav"
-        : "webm";
+  const ext = clip.blob.type.includes("mpeg")
+    ? "mp3"
+    : clip.blob.type.includes("flac")
+      ? "flac"
+      : clip.blob.type.includes("aac")
+        ? "aac"
+        : clip.blob.type.includes("mp4")
+          ? "m4a"
+          : clip.blob.type.includes("ogg")
+            ? "ogg"
+            : clip.blob.type.includes("wav")
+              ? "wav"
+              : "webm";
   download(clip.blob, `benchmark-${clip.id}.${ext}`);
 };
 $("report").onclick = () =>

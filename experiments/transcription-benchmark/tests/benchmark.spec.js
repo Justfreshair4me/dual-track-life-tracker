@@ -38,13 +38,11 @@ async function load(page) {
   await expect(page.locator("#model-status")).toContainText("ready");
 }
 async function clip(page, seconds = 15) {
-  await page
-    .locator("#file")
-    .setInputFiles({
-      name: "fictional.wav",
-      mimeType: "audio/wav",
-      buffer: wav(seconds),
-    });
+  await page.locator("#file").setInputFiles({
+    name: "fictional.wav",
+    mimeType: "audio/wav",
+    buffer: wav(seconds),
+  });
   await expect(page.locator("#clip")).toBeVisible();
 }
 test("production styling, subdirectory assets, no errors, no automatic model downloads", async ({
@@ -132,6 +130,7 @@ test("cancellation during load and inference releases worker and retains origina
   const src = await page.locator("#audio").getAttribute("src");
   page.once("dialog", (d) => d.accept());
   await page.locator("#load").click();
+  await expect(page.locator("#save-audio")).toBeEnabled();
   await page.locator("#cancel").click();
   await expect(page.locator("#status")).toContainText("Canceled");
   await expect(page.locator("#load")).toBeEnabled();
@@ -142,6 +141,7 @@ test("cancellation during load and inference releases worker and retains origina
   );
   await load(page);
   await page.locator("#run").click();
+  await expect(page.locator("#save-audio")).toBeEnabled();
   await page.locator("#cancel").click();
   await expect(page.locator("#run")).toBeDisabled();
   expect(await page.locator("#audio").getAttribute("src")).toBe(src);
@@ -175,23 +175,19 @@ test("damaged and oversized imports do not replace existing audio", async ({
   await clip(page);
   const src = await page.locator("#audio").getAttribute("src");
   page.once("dialog", (d) => d.accept());
-  await page
-    .locator("#file")
-    .setInputFiles({
-      name: "bad.wav",
-      mimeType: "audio/wav",
-      buffer: Buffer.from("not audio"),
-    });
+  await page.locator("#file").setInputFiles({
+    name: "bad.wav",
+    mimeType: "audio/wav",
+    buffer: Buffer.from("not audio"),
+  });
   await expect(page.locator("#status")).toContainText("Cannot read clip");
   expect(await page.locator("#audio").getAttribute("src")).toBe(src);
   page.once("dialog", (d) => d.accept());
-  await page
-    .locator("#file")
-    .setInputFiles({
-      name: "too-long.wav",
-      mimeType: "audio/wav",
-      buffer: wav(65),
-    });
+  await page.locator("#file").setInputFiles({
+    name: "too-long.wav",
+    mimeType: "audio/wav",
+    buffer: wav(65),
+  });
   await expect(page.locator("#status")).toContainText("60 seconds");
   expect(await page.locator("#audio").getAttribute("src")).toBe(src);
 });
@@ -296,3 +292,53 @@ test("microphone permission failure offers import without damaging existing clip
   expect(await page.locator("#audio").getAttribute("src")).toBe(src);
   await expect(page.locator("#file")).toBeEnabled();
 });
+for (const seconds of [15, 30, 60]) {
+  test(`automatic ${seconds}s recording stop with simulated clock releases microphone and retains clip`, async ({
+    page,
+  }) => {
+    await page.addInitScript(
+      ({ encoded }) => {
+        window.testTrackStopped = false;
+        navigator.mediaDevices.getUserMedia = async () => ({
+          getTracks: () => [
+            {
+              stop: () => {
+                window.testTrackStopped = true;
+              },
+            },
+          ],
+        });
+        const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+        window.MediaRecorder = class {
+          static isTypeSupported() {
+            return false;
+          }
+          state = "inactive";
+          mimeType = "audio/wav";
+          start() {
+            this.state = "recording";
+          }
+          stop() {
+            this.state = "inactive";
+            this.ondataavailable({
+              data: new Blob([bytes], { type: "audio/wav" }),
+            });
+            this.onstop();
+          }
+        };
+      },
+      { encoded: wav(seconds).toString("base64") },
+    );
+    await open(page);
+    await page.clock.install();
+    await page.locator("#duration").selectOption(String(seconds));
+    await page.locator("#record").click();
+    await expect(page.locator("#stop")).toBeEnabled();
+    await page.clock.fastForward(seconds * 1000);
+    await expect(page.locator("#clip-info")).toContainText(
+      `${seconds}.0 seconds`,
+    );
+    expect(await page.evaluate(() => window.testTrackStopped)).toBeTruthy();
+    await expect(page.locator("#record")).toBeEnabled();
+  });
+}
