@@ -30,6 +30,12 @@ jobs:
         run: npm test
         env:
           REAL_MODELS: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-measurements
+          path: experiments/transcription-benchmark/test-results
+          retention-days: 7
       - name: Build standalone experimental site
         run: npm run build
       - uses: actions/upload-artifact@v4
