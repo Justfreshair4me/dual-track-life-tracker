@@ -9,7 +9,7 @@ if(process.env.REAL_MODELS==='1'){
    await context.setOffline(false);await page.locator('#model').selectOption(model);page.once('dialog',d=>d.accept());await page.locator('#load').click();
    await expect(page.locator('#status')).toContainText(/Ready\.|Model failed:|Worker stopped unexpectedly/,{timeout:120000});if(!(await page.locator('#model-status').textContent()).includes('ready'))throw new Error('Real '+model+' initialization: '+await page.locator('#status').textContent());
    await context.setOffline(true);await page.locator('#run').click();
-   await expect(page.locator('.transcript').last()).toContainText(/garden|flowers|book|birds|friend/i,{timeout:180000});
+   await expect(page.locator('#status')).toContainText(/Transcription finished|No text detected|Model failed:|Worker stopped unexpectedly/,{timeout:180000});if(!(await page.locator('#status').textContent()).includes('Transcription finished'))throw new Error('Real '+model+' inference: '+await page.locator('#status').textContent());await expect(page.locator('.result')).toHaveCount(model==='whisper'?1:2);await expect(page.locator('.transcript').last()).toContainText(/garden|flowers|book|birds|friend/i);
   }
   await expect(page.locator('.result')).toHaveCount(2);const titles=await page.locator('.result h3').allTextContents();expect(titles[0].split('clip ')[1]).toBe(titles[1].split('clip ')[1]);
   await page.locator('#audio').evaluate(async a=>{await a.play();a.pause();});expect(errors).toEqual([]);
