@@ -1,0 +1,44 @@
+name: Isolated transcription benchmark checks
+on:
+  push:
+    branches: [experiment/local-audio-benchmark]
+    paths: [experiments/transcription-benchmark/**, .github/workflows/benchmark-check.yml]
+  pull_request:
+    paths: [experiments/transcription-benchmark/**, .github/workflows/benchmark-check.yml]
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: experiments/transcription-benchmark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: experiments/transcription-benchmark/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y espeak
+      - run: npm run models
+      - run: python3 scripts/fixtures.py
+      - run: node scripts/prepare.mjs
+      - name: UI, recording, isolation, offline and real-model 15/30/60-second tests
+        run: npm test
+        env:
+          REAL_MODELS: '1'
+      - name: Build standalone experimental site
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: standalone-benchmark-site
+          path: experiments/transcription-benchmark/dist
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: benchmark-test-results
+          path: experiments/transcription-benchmark/test-results
